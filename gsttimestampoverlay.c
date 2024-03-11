@@ -40,6 +40,7 @@
 #include "gsttimestampoverlay.h"
 
 #include <string.h>
+#include <sys/time.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_timestampoverlay_debug_category);
 #define GST_CAT_DEFAULT gst_timestampoverlay_debug_category
@@ -191,7 +192,7 @@ gst_timestampoverlay_transform_frame_ip (GstVideoFilter * filter, GstVideoFrame 
   GST_DEBUG_OBJECT (overlay, "transform_frame_ip");
 
   GstClockTime buffer_time, stream_time, running_time, clock_time, latency,
-      render_time, render_realtime;
+      render_time/* , render_realtime */;
   GstSegment *segment = &GST_BASE_TRANSFORM (overlay)->segment;
   unsigned char * imgdata;
 
@@ -224,8 +225,8 @@ gst_timestampoverlay_transform_frame_ip (GstVideoFilter * filter, GstVideoFrame 
     render_time = clock_time;
 
   GST_OBJECT_LOCK (overlay->realtime_clock);
-  render_realtime = gst_clock_unadjust_unlocked (
-      overlay->realtime_clock, render_time);
+  // render_realtime = gst_clock_unadjust_unlocked (
+  //     overlay->realtime_clock, render_time);
   GST_OBJECT_UNLOCK (overlay->realtime_clock);
 
   imgdata = frame->data[0];
@@ -237,6 +238,14 @@ gst_timestampoverlay_transform_frame_ip (GstVideoFilter * filter, GstVideoFrame 
   imgdata += (frame->info.width - 64 * 8) * frame->info.finfo->pixel_stride[0]
       / 2;
 
+  // struct timespec start;
+  // clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  // guint64 timestamp_in_us = start.tv_sec * 1000000 + start.tv_nsec / 1000;
+
+  struct timeval tv;
+  gettimeofday(&tv,NULL);
+  guint64 timestamp_in_us = tv.tv_sec*(guint64)1000000+tv.tv_usec;
+
   draw_timestamp (0, buffer_time, imgdata, frame->info.stride[0],
       frame->info.finfo->pixel_stride[0]);
   draw_timestamp (1, stream_time, imgdata, frame->info.stride[0],
@@ -247,7 +256,7 @@ gst_timestampoverlay_transform_frame_ip (GstVideoFilter * filter, GstVideoFrame 
       frame->info.finfo->pixel_stride[0]);
   draw_timestamp (4, render_time, imgdata, frame->info.stride[0],
       frame->info.finfo->pixel_stride[0]);
-  draw_timestamp (5, render_realtime, imgdata, frame->info.stride[0],
+  draw_timestamp (5, timestamp_in_us, imgdata, frame->info.stride[0],
       frame->info.finfo->pixel_stride[0]);
 
   return GST_FLOW_OK;

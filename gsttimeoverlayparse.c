@@ -40,6 +40,7 @@
 #include "gsttimeoverlayparse.h"
 
 #include <string.h>
+#include <sys/time.h>
 
 GST_DEBUG_CATEGORY_STATIC (gst_timeoverlayparse_debug_category);
 #define GST_CAT_DEFAULT gst_timeoverlayparse_debug_category
@@ -196,10 +197,18 @@ gst_timeoverlayparse_transform_frame_ip (GstVideoFilter * filter, GstVideoFrame 
       GST_TIME_ARGS(timestamps.render_time),
       GST_TIME_ARGS(timestamps.render_realtime));
 
+  // struct timespec end;
+  // clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+  // guint64 timestamp_in_us = end.tv_sec * 1000000 + end.tv_nsec / 1000;
+
+  struct timeval tv;
+  gettimeofday(&tv,NULL);
+  guint64 timestamp_in_us = tv.tv_sec*(guint64)1000000+tv.tv_usec;
+
+  clock_time = timestamp_in_us;
   latency = clock_time - timestamps.render_realtime;
 
-  GST_INFO_OBJECT (filter, "Latency: %" GST_TIME_FORMAT,
-      GST_TIME_ARGS(latency));
+  GST_INFO_OBJECT (filter, "Latency: %lu us", latency);
 
   return GST_FLOW_OK;
 }
